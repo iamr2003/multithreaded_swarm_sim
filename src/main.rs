@@ -54,6 +54,9 @@ fn main() {
         Array::random((n_agents, 2), Uniform::new(-enclosure_edge, enclosure_edge));
     let mut agents_vel: Array2<f64> = Array::zeros((n_agents, 2));
 
+    let mut pos_history: Vec<Array2<f64>> = vec![];
+    let mut vel_history: Vec<Array2<f64>> = vec![];
+
     println!("{}", agents_pos.mean_axis(Axis(0)).unwrap());
 
     println!("{}", agents_pos.slice(s![0, ..]));
@@ -82,23 +85,37 @@ fn main() {
     // }
 
     for _ in 0..steps {
+        let next_agents_pos: Array2<f64> = agents_pos.clone();
+        let next_agents_vel: Array2<f64> = agents_vel.clone();
         //find neighbors, the slow way
         for i in 0..n_agents {
             let mut neighbors: Vec<usize> = vec![];
+            let agent = agents_pos.slice(s![i, ..]).to_owned();
             for j in 0..n_agents {
                 if i != j {
-                    let agent = agents_pos.slice(s![i, ..]).to_owned();
                     let other = agents_pos.slice(s![j, ..]).to_owned();
-                    let diff = agent - other;
+                    let diff = agent.to_owned() - other;
                     if diff.norm() > neighbor_radius {
                         //is neighbor, now do stuff
                         neighbors.push(j);
                     }
                 }
                 //some kind of handle neighbors call
-                let agent_vel = local_controller(i, &neighbors, &agents_pos, &agents_vel);
+                let agent_next_vel = local_controller(i, &neighbors, &agents_pos, &agents_vel);
+                let agent_next_pos = agent_vel * dt + agent.to_owned();
+
+                //eventually boundary conditions and velocity limits
+
+                //  assign for specific agent
+                next_agents_pos.slice_mut(s![i, ..]).assign(&agent_next_pos);
+                next_agents_vel.slice_mut(s![i, ..]).assign(&agent_next_vel);
             }
         }
-        //some kind of logic to handle between state transitions, time changing, etc.
+        //log current iteration and overwrite
+        pos_history.push(agents_pos.clone());
+        vel_history.push(agents_vel.clone());
+
+        agents_pos = next_agents_pos;
+        agents_vel = next_agents_vel;
     }
 }
