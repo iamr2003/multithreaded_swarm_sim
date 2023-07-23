@@ -2,6 +2,7 @@ use ndarray::{array, s, Array, Array1, Array2, Axis};
 use ndarray_linalg::*;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
+use three_d::*;
 
 // spits out velocity
 fn local_controller(
@@ -85,8 +86,8 @@ fn main() {
     // }
 
     for _ in 0..steps {
-        let next_agents_pos: Array2<f64> = agents_pos.clone();
-        let next_agents_vel: Array2<f64> = agents_vel.clone();
+        let mut next_agents_pos: Array2<f64> = agents_pos.clone();
+        let mut next_agents_vel: Array2<f64> = agents_vel.clone();
         //find neighbors, the slow way
         for i in 0..n_agents {
             let mut neighbors: Vec<usize> = vec![];
@@ -102,7 +103,7 @@ fn main() {
                 }
                 //some kind of handle neighbors call
                 let agent_next_vel = local_controller(i, &neighbors, &agents_pos, &agents_vel);
-                let agent_next_pos = agent_vel * dt + agent.to_owned();
+                let agent_next_pos = agent_next_vel.clone() * dt + agent.to_owned();
 
                 //eventually boundary conditions and velocity limits
 
@@ -118,4 +119,15 @@ fn main() {
         agents_pos = next_agents_pos;
         agents_vel = next_agents_vel;
     }
+
+    //some rendering of the agents, would like to keep separate from the engine aspect
+    let window = Window::new(WindowSettings {
+        title: "Shapes 2D!".to_string(),
+        max_size: Some((1280, 720)),
+        ..Default::default()
+    })
+    .unwrap();
+    let context = window.gl();
+    // let scale_factor = window.device_pixel_ratio();
+    let (width, height) = window.size();
 }
