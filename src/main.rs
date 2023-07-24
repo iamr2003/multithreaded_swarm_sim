@@ -58,9 +58,9 @@ fn main() {
     let mut pos_history: Vec<Array2<f64>> = vec![];
     let mut vel_history: Vec<Array2<f64>> = vec![];
 
-    println!("{}", agents_pos.mean_axis(Axis(0)).unwrap());
+    // println!("{}", agents_pos.mean_axis(Axis(0)).unwrap());
 
-    println!("{}", agents_pos.slice(s![0, ..]));
+    // println!("{}", agents_pos.slice(s![0, ..]));
 
     // let mut top_agent = agents_pos.slice_mut(s![0, ..]);
 
@@ -76,7 +76,7 @@ fn main() {
         // agent[1] = temp[0];
     }
 
-    println!("{}", agents_pos);
+    // println!("{}", agents_pos);
     //to_owned needs to be used to clone the subview properly
     // for i in 0..n_agents {
     //     for j in 0..n_agents {
@@ -120,6 +120,10 @@ fn main() {
         agents_vel = next_agents_vel;
     }
 
+    // for pos in pos_history.iter(){
+    //     println!("{}",pos);
+    // }
+
     //some rendering of the agents, would like to keep separate from the engine aspect
     let window = Window::new(WindowSettings {
         title: "Shapes 2D!".to_string(),
@@ -128,6 +132,27 @@ fn main() {
     })
     .unwrap();
     let context = window.gl();
-    // let scale_factor = window.device_pixel_ratio();
+    let scale_factor = 1.0;
     let (width, height) = window.size();
+
+    let mut agent_circle = Gm::new(
+        Circle::new(
+            &context,
+            vec2(500.0, 500.0) * scale_factor,
+            200.0 * scale_factor,
+        ),
+        ColorMaterial {
+            color: Color::BLUE,
+            ..Default::default()
+        },
+    );
+
+    window.render_loop(move |frame_input| {
+        frame_input
+            .screen()
+            .clear(ClearState::color_and_depth(0.8, 0.8, 0.8, 1.0, 1.0))
+            .render(&camera2d(frame_input.viewport), &agent_circle, &[]);
+        FrameOutput::default()
+    });
+    // camera2d(fram_input.viewport)
 }
