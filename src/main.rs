@@ -135,23 +135,43 @@ fn main() {
     let scale_factor = 1.0;
     let (width, height) = window.size();
 
+    let agent_visual_radius = 30.0 * scale_factor;
+    let agent_material = ColorMaterial {
+        color: Color::BLUE,
+        ..Default::default()
+    };
+
+    let mut circles: Vec<Gm<Circle, ColorMaterial>> = vec![];
+    let mut circles_tog: Gm<Circle, ColorMaterial> = Gm::new(
+        Circle::new(&context, vec2(500.0, 500.0) * scale_factor, 0.0),
+        agent_material.clone(),
+    );
+
+    for agent_pos in pos_history[0].iter() {
+        circles.push(Gm::new(
+            Circle::new(
+                &context,
+                vec2(500.0, 500.0) * scale_factor,
+                agent_visual_radius,
+            ),
+            agent_material.clone(),
+        ));
+    }
+
     let mut agent_circle = Gm::new(
         Circle::new(
             &context,
             vec2(500.0, 500.0) * scale_factor,
-            200.0 * scale_factor,
+            agent_visual_radius,
         ),
-        ColorMaterial {
-            color: Color::BLUE,
-            ..Default::default()
-        },
+        agent_material,
     );
 
     window.render_loop(move |frame_input| {
         frame_input
             .screen()
-            .clear(ClearState::color_and_depth(0.8, 0.8, 0.8, 1.0, 1.0))
-            .render(&camera2d(frame_input.viewport), &agent_circle, &[]);
+            .clear(ClearState::color_and_depth(0.0, 0.0, 0.0, 1.0, 1.0))
+            .render(&camera2d(frame_input.viewport), &circles[0], &[]);
         FrameOutput::default()
     });
     // camera2d(fram_input.viewport)
