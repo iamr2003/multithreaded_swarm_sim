@@ -8,15 +8,15 @@ use three_d::*;
 fn local_controller(
     self_agent: usize,
     neighbors: &Vec<usize>,
-    agents_pos: &Array2<f64>,
-    agents_vel: &Array2<f64>,
-) -> Array1<f64> {
+    agents_pos: &Array2<f32>,
+    agents_vel: &Array2<f32>,
+) -> Array1<f32> {
     //let's start with basic boids
     let curr_pos = agents_pos.slice(s![self_agent, ..]);
     let pos_centroid = agents_pos.mean_axis(Axis(0)).unwrap();
     let vel_centroid = agents_pos.mean_axis(Axis(0)).unwrap();
 
-    let sep: Array1<f64> = Array::zeros(2);
+    let sep: Array1<f32> = Array::zeros(2);
     //need to do some manipulation
     // let rel_pos;
 
@@ -51,12 +51,12 @@ fn main() {
     let enclosure_edge = 10.; //m
     let neighbor_radius = 5.; //m
 
-    let mut agents_pos: Array2<f64> =
+    let mut agents_pos: Array2<f32> =
         Array::random((n_agents, 2), Uniform::new(-enclosure_edge, enclosure_edge));
-    let mut agents_vel: Array2<f64> = Array::zeros((n_agents, 2));
+    let mut agents_vel: Array2<f32> = Array::zeros((n_agents, 2));
 
-    let mut pos_history: Vec<Array2<f64>> = vec![];
-    let mut vel_history: Vec<Array2<f64>> = vec![];
+    let mut pos_history: Vec<Array2<f32>> = vec![];
+    let mut vel_history: Vec<Array2<f32>> = vec![];
 
     // println!("{}", agents_pos.mean_axis(Axis(0)).unwrap());
 
@@ -68,7 +68,7 @@ fn main() {
         // println!("{}", agent);
         //need to understand a little more how to handle this, I just want to reassign some values
         //in bulk
-        let new: Array<f64, _> = array![agent[1], agent[0]];
+        let new: Array<f32, _> = array![agent[1], agent[0]];
 
         agent.assign(&new);
         // let temp = agent.to_owned();
@@ -86,8 +86,8 @@ fn main() {
     // }
 
     for _ in 0..steps {
-        let mut next_agents_pos: Array2<f64> = agents_pos.clone();
-        let mut next_agents_vel: Array2<f64> = agents_vel.clone();
+        let mut next_agents_pos: Array2<f32> = agents_pos.clone();
+        let mut next_agents_vel: Array2<f32> = agents_vel.clone();
         //find neighbors, the slow way
         for i in 0..n_agents {
             let mut neighbors: Vec<usize> = vec![];
@@ -147,11 +147,11 @@ fn main() {
         agent_material.clone(),
     );
 
-    for agent_pos in pos_history[0].iter() {
+    for agent_pos in pos_history[0].rows() {
         circles.push(Gm::new(
             Circle::new(
                 &context,
-                vec2(500.0, 500.0) * scale_factor,
+                vec2(agent_pos[0],agent_pos[1]) * scale_factor,
                 agent_visual_radius,
             ),
             agent_material.clone(),
@@ -171,7 +171,7 @@ fn main() {
         frame_input
             .screen()
             .clear(ClearState::color_and_depth(0.0, 0.0, 0.0, 1.0, 1.0))
-            .render(&camera2d(frame_input.viewport), &circles[0], &[]);
+            .render(&camera2d(frame_input.viewport), circles.iter(),&[]);
         FrameOutput::default()
     });
     // camera2d(fram_input.viewport)
