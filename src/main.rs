@@ -45,8 +45,8 @@ fn main() {
     // let r = Array::random((2,5),Uniform::new(0.,10.));
     // println!("{}",r);
 
-    let total_time = 10.0; //s
-    let dt = 0.1;
+    let total_time = 5.0; //s
+    let dt = 0.01;
     let steps = (total_time / dt) as i32;
     let n_agents = 10;
     let enclosure_edge = 10.; //m
@@ -135,7 +135,7 @@ fn main() {
     let context = window.gl();
     let scale_factor = 1.0;
     let (width, height) = window.size();
-    let agent_visual_radius = 30.0 * scale_factor;
+    let agent_visual_radius = 15.0 * scale_factor;
     let agent_material = ColorMaterial {
         color: Color::BLUE,
         ..Default::default()
@@ -161,9 +161,9 @@ fn main() {
 
         //run a replay because simpler style for now
         //
-        let elapsed_s = start.elapsed().as_secs();
-        //rounding issue right now
-        let current_step = (((elapsed_s as f32)/(dt)).round() as i32) % steps;
+        let elapsed_s = start.elapsed().as_millis() as f64/1000.0;
+        println!("{}",elapsed_s);
+        let current_step = (((elapsed_s as f32)/(dt as f32)).round() as i32) % steps;
         println!("{}",current_step);
 
         for agent_pos in pos_history[current_step as usize].rows() {
