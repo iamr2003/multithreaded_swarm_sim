@@ -134,6 +134,8 @@ fn main() {
     let context = window.gl();
     let scale_factor = 1.0;
     let (width, height) = window.size();
+    // let width = window.viewport().width;
+    // let height = window.viewport().height;
 
     let agent_visual_radius = 30.0 * scale_factor;
     let agent_material = ColorMaterial {
@@ -146,7 +148,7 @@ fn main() {
     // need to put some scaling logic here
     // positions will be (-enc_size,enc_size)
     // true center will be
-    let (x_center, y_center) = ((height / 2) as f32, (width / 2) as f32);
+    let (x_center, y_center) = ((width / 2) as f32, (height / 2) as f32);
 
     let shorter_radius = (height / 2) as f32;
     let scalar = shorter_radius / enclosure_edge;
@@ -167,14 +169,37 @@ fn main() {
     // calibration point for the center
     //
     //
-    circles.push(Gm::new(
-        Circle::new(
-            &context,
-            vec2( x_center,y_center) * scale_factor,
-            agent_visual_radius,
-        ),
-        ColorMaterial { color: Color::RED, ..Default::default() },
-    ));
+    let edge_marker_radius = 3.0 * scale_factor;
+
+    // circles.push(Gm::new(
+    //     Circle::new(
+    //         &context,
+    //         vec2(x_center, y_center) * scale_factor,
+    //         edge_marker_radius,
+    //     ),
+    //     ColorMaterial {
+    //         color: Color::RED,
+    //         ..Default::default()
+    //     },
+    // ));
+
+    //edge markers
+    for i in [-1.0,0.0, 1.0].iter(){
+        for j in [-1.0,0.0, 1.0] {
+            circles.push(Gm::new(
+                Circle::new(
+                    &context,
+                    vec2(x_center+ shorter_radius*i, y_center + shorter_radius*j) * scale_factor,
+                    edge_marker_radius,
+                ),
+                ColorMaterial {
+                    color: Color::RED,
+                    ..Default::default()
+                },
+            ));
+        }
+    }
+
 
     window.render_loop(move |frame_input| {
         frame_input
