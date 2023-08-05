@@ -3,6 +3,7 @@ use ndarray_linalg::*;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use three_d::*;
+use std::time::{Duration,Instant};
 
 // spits out velocity
 fn local_controller(
@@ -127,81 +128,91 @@ fn main() {
     //some rendering of the agents, would like to keep separate from the engine aspect
     let window = Window::new(WindowSettings {
         title: "Shapes 2D!".to_string(),
-        max_size: Some((1280, 720)),
+        max_size: Some((720, 720)),
         ..Default::default()
     })
     .unwrap();
     let context = window.gl();
     let scale_factor = 1.0;
     let (width, height) = window.size();
-    // let width = window.viewport().width;
-    // let height = window.viewport().height;
-
     let agent_visual_radius = 30.0 * scale_factor;
     let agent_material = ColorMaterial {
         color: Color::BLUE,
         ..Default::default()
     };
 
-    let mut circles: Vec<Gm<Circle, ColorMaterial>> = vec![];
+    //let's do it on a timer first
+    let start = Instant::now(); 
 
-    // need to put some scaling logic here
-    // positions will be (-enc_size,enc_size)
-    // true center will be
-    let (x_center, y_center) = ((width / 2) as f32, (height / 2) as f32);
+    window.render_loop(move |frame_input| {
+        // let width = window.viewport().width;
+        // let height = window.viewport().height;
 
-    let shorter_radius = (height / 2) as f32;
-    let scalar = shorter_radius / enclosure_edge;
 
-    for agent_pos in pos_history[0].rows() {
-        let agent_x = (agent_pos[0] * scalar) + x_center;
-        let agent_y = (agent_pos[1] * scalar) + y_center;
-        circles.push(Gm::new(
-            Circle::new(
-                &context,
-                vec2(agent_x, agent_y) * scale_factor,
-                agent_visual_radius,
-            ),
-            agent_material.clone(),
-        ));
-    }
+        let mut circles: Vec<Gm<Circle, ColorMaterial>> = vec![];
 
-    // calibration point for the center
-    //
-    //
-    let edge_marker_radius = 3.0 * scale_factor;
+        // need to put some scaling logic here
+        // positions will be (-enc_size,enc_size)
+        // true center will be
+        let (x_center, y_center) = ((width / 2) as f32, (height / 2) as f32);
 
-    // circles.push(Gm::new(
-    //     Circle::new(
-    //         &context,
-    //         vec2(x_center, y_center) * scale_factor,
-    //         edge_marker_radius,
-    //     ),
-    //     ColorMaterial {
-    //         color: Color::RED,
-    //         ..Default::default()
-    //     },
-    // ));
+        let shorter_radius = (height / 2) as f32;
+        let scalar = shorter_radius / enclosure_edge;
 
-    //edge markers
-    for i in [-1.0,0.0, 1.0].iter(){
-        for j in [-1.0,0.0, 1.0] {
+        //run a replay because simpler style for now
+        //
+        let elapsed_s = start.elapsed().as_secs();
+        //rounding issue right now
+        let current_step = (((elapsed_s as f32)/(dt)).round() as i32) % steps;
+        println!("{}",current_step);
+
+        for agent_pos in pos_history[current_step as usize].rows() {
+            let agent_x = (agent_pos[0] * scalar) + x_center;
+            let agent_y = (agent_pos[1] * scalar) + y_center;
             circles.push(Gm::new(
                 Circle::new(
                     &context,
-                    vec2(x_center+ shorter_radius*i, y_center + shorter_radius*j) * scale_factor,
-                    edge_marker_radius,
+                    vec2(agent_x, agent_y) * scale_factor,
+                    agent_visual_radius,
                 ),
-                ColorMaterial {
-                    color: Color::RED,
-                    ..Default::default()
-                },
+                agent_material.clone(),
             ));
         }
-    }
 
+        // calibration point for the center
+        //
+        //
+        let edge_marker_radius = 3.0 * scale_factor;
 
-    window.render_loop(move |frame_input| {
+        // circles.push(Gm::new(
+        //     Circle::new(
+        //         &context,
+        //         vec2(x_center, y_center) * scale_factor,
+        //         edge_marker_radius,
+        //     ),
+        //     ColorMaterial {
+        //         color: Color::RED,
+        //         ..Default::default()
+        //     },
+        // ));
+
+        //edge markers
+        for i in [-1.0, 0.0, 1.0].iter() {
+            for j in [-1.0, 0.0, 1.0] {
+                circles.push(Gm::new(
+                    Circle::new(
+                        &context,
+                        vec2(x_center + shorter_radius * i, y_center + shorter_radius * j)
+                            * scale_factor,
+                        edge_marker_radius,
+                    ),
+                    ColorMaterial {
+                        color: Color::RED,
+                        ..Default::default()
+                    },
+                ));
+            }
+        }
         frame_input
             .screen()
             .clear(ClearState::color_and_depth(0.0, 0.0, 0.0, 1.0, 1.0))
