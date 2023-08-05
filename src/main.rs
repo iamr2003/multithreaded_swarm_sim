@@ -142,36 +142,45 @@ fn main() {
     };
 
     let mut circles: Vec<Gm<Circle, ColorMaterial>> = vec![];
-    let mut circles_tog: Gm<Circle, ColorMaterial> = Gm::new(
-        Circle::new(&context, vec2(500.0, 500.0) * scale_factor, 0.0),
-        agent_material.clone(),
-    );
+
+    // need to put some scaling logic here
+    // positions will be (-enc_size,enc_size)
+    // true center will be
+    let (x_center, y_center) = ((height / 2) as f32, (width / 2) as f32);
+
+    let shorter_radius = (height / 2) as f32;
+    let scalar = shorter_radius / enclosure_edge;
 
     for agent_pos in pos_history[0].rows() {
+        let agent_x = (agent_pos[0] * scalar) + x_center;
+        let agent_y = (agent_pos[1] * scalar) + y_center;
         circles.push(Gm::new(
             Circle::new(
                 &context,
-                vec2(agent_pos[0],agent_pos[1]) * scale_factor,
+                vec2(agent_x, agent_y) * scale_factor,
                 agent_visual_radius,
             ),
             agent_material.clone(),
         ));
     }
 
-    let mut agent_circle = Gm::new(
+    // calibration point for the center
+    //
+    //
+    circles.push(Gm::new(
         Circle::new(
             &context,
-            vec2(500.0, 500.0) * scale_factor,
+            vec2( x_center,y_center) * scale_factor,
             agent_visual_radius,
         ),
-        agent_material,
-    );
+        ColorMaterial { color: Color::RED, ..Default::default() },
+    ));
 
     window.render_loop(move |frame_input| {
         frame_input
             .screen()
             .clear(ClearState::color_and_depth(0.0, 0.0, 0.0, 1.0, 1.0))
-            .render(&camera2d(frame_input.viewport), circles.iter(),&[]);
+            .render(&camera2d(frame_input.viewport), circles.iter(), &[]);
         FrameOutput::default()
     });
     // camera2d(fram_input.viewport)
