@@ -103,11 +103,30 @@ fn main() {
                     }
                 }
                 //some kind of handle neighbors call
-                let agent_next_vel = local_controller(i, &neighbors, &agents_pos, &agents_vel);
+                let mut agent_next_vel = local_controller(i, &neighbors, &agents_pos, &agents_vel);
                 let agent_next_pos = agent_next_vel.clone() * dt + agent.to_owned();
 
                 //eventually boundary conditions and velocity limits
+                //simple bounce condition by dimension
+                if agent_next_pos[0]>enclosure_edge && agent_next_vel[0]>0.0{
+                    println!("OUT OF EDGE, FLIPPING");
+                    agent_next_vel[0] *=-1.0;
+                }
 
+                if agent_next_pos[0]<enclosure_edge && agent_next_vel[0]<0.0{
+                    println!("OUT OF EDGE, FLIPPING");
+                    agent_next_vel[0] *=-1.0;
+                }
+
+                if agent_next_pos[1]>enclosure_edge && agent_next_vel[1]>0.0{
+                    println!("OUT OF EDGE, FLIPPING");
+                    agent_next_vel[1] *=-1.0;
+                }
+
+                if agent_next_pos[1]<enclosure_edge && agent_next_vel[1]<0.0{
+                    println!("OUT OF EDGE, FLIPPING");
+                    agent_next_vel[1] *=-1.0;
+                }
                 //  assign for specific agent
                 next_agents_pos.slice_mut(s![i, ..]).assign(&agent_next_pos);
                 next_agents_vel.slice_mut(s![i, ..]).assign(&agent_next_vel);
