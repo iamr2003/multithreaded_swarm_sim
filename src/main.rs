@@ -7,15 +7,16 @@ use three_d::*;
 
 // spits out velocity
 fn local_controller(
-    self_agent: usize,
-    neighbors: &Vec<usize>,
-    agents_pos: &Array2<f32>,
-    agents_vel: &Array2<f32>,
+    neighbors_pos: &Array2<f32>,
+    neighbors_vel: &Array2<f32>,
+    self_pos: &Array1<f32>,
+    self_vel: &Array1<f32>,
 ) -> Array1<f32> {
     //let's start with basic boids
-    let curr_pos = agents_pos.slice(s![self_agent, ..]);
-    let pos_centroid = agents_pos.mean_axis(Axis(0)).unwrap();
-    let vel_centroid = agents_pos.mean_axis(Axis(0)).unwrap();
+
+    //WRONG, currently lets all agents see each other -- need to do index max
+    let pos_centroid = neighbors_pos.mean_axis(Axis(0)).unwrap();
+    let vel_centroid = neighbors_vel.mean_axis(Axis(0)).unwrap();
 
     let sep: Array1<f32> = Array::zeros(2);
     //need to do some manipulation
@@ -25,7 +26,7 @@ fn local_controller(
     let ali_gain = 1.0;
     let sep_gain = 1.0;
 
-    let out = coh_gain * (pos_centroid - curr_pos) + ali_gain * vel_centroid + sep_gain * sep;
+    let out = coh_gain * (pos_centroid - self_pos) + ali_gain * vel_centroid + sep_gain * sep;
 
     return out;
 }
@@ -91,20 +92,23 @@ fn main() {
         let mut next_agents_vel: Array2<f32> = agents_vel.clone();
         //find neighbors, the slow way
         for i in 0..n_agents {
-            let mut neighbors: Vec<usize> = vec![];
-            let agent = agents_pos.slice(s![i, ..]).to_owned();
+            let mut neighbors_pos: Vec<Array1<f32>> = vec![];
+            let mut neighbors_vel: Vec<Array1<f32>> = vec![];
+            let agent_pos = agents_pos.slice(s![i, ..]).to_owned();
+            let agent_vel = agents_vel.slice(s![i, ..]).to_owned();
             for j in 0..n_agents {
                 if i != j {
                     let other = agents_pos.slice(s![j, ..]).to_owned();
-                    let diff = agent.to_owned() - other;
+                    let diff = agent_pos.to_owned() - other;
                     if diff.norm() > neighbor_radius {
                         //is neighbor, now do stuff
-                        neighbors.push(j);
+                        neighbors_pos.push(other);
+                        neighbors_vel.push(agents_vel.slice(s![j, ..]).to_owned());
                     }
                 }
                 //some kind of handle neighbors call
-                let mut agent_next_vel = local_controller(i, &neighbors, &agents_pos, &agents_vel);
-                let agent_next_pos = agent_next_vel.clone() * dt + agent.to_owned();
+                let mut agent_next_vel = local_controller( &Array2::from(neighbors_pos),&Array2::from(neighbors_vel),&agent_pos, &agent_vel);
+                let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
 
                 //eventually boundary conditions and velocity limits
                 //simple bounce condition by dimension
@@ -125,7 +129,7 @@ fn main() {
                 }
 
                 //updating again after boundary update
-                let agent_next_pos = agent_next_vel.clone() * dt + agent.to_owned();
+                let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
 
                 //  assign for specific agent
                 next_agents_pos.slice_mut(s![i, ..]).assign(&agent_next_pos);
