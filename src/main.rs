@@ -2,8 +2,8 @@ use ndarray::{array, s, Array, Array1, Array2, Axis};
 use ndarray_linalg::*;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
+use std::time::{Duration, Instant};
 use three_d::*;
-use std::time::{Duration,Instant};
 
 // spits out velocity
 fn local_controller(
@@ -108,25 +108,25 @@ fn main() {
 
                 //eventually boundary conditions and velocity limits
                 //simple bounce condition by dimension
-                if agent_next_pos[0]>enclosure_edge && agent_next_vel[0]>0.0{
-                    println!("OUT OF EDGE, FLIPPING");
-                    agent_next_vel[0] *=-1.0;
+                if agent_next_pos[0] > enclosure_edge && agent_next_vel[0] > 0.0 {
+                    agent_next_vel[0] *= -1.0;
                 }
 
-                if agent_next_pos[0]<enclosure_edge && agent_next_vel[0]<0.0{
-                    println!("OUT OF EDGE, FLIPPING");
-                    agent_next_vel[0] *=-1.0;
+                if agent_next_pos[0] < enclosure_edge && agent_next_vel[0] < 0.0 {
+                    agent_next_vel[0] *= -1.0;
                 }
 
-                if agent_next_pos[1]>enclosure_edge && agent_next_vel[1]>0.0{
-                    println!("OUT OF EDGE, FLIPPING");
-                    agent_next_vel[1] *=-1.0;
+                if agent_next_pos[1] > enclosure_edge && agent_next_vel[1] > 0.0 {
+                    agent_next_vel[1] *= -1.0;
                 }
 
-                if agent_next_pos[1]<enclosure_edge && agent_next_vel[1]<0.0{
-                    println!("OUT OF EDGE, FLIPPING");
-                    agent_next_vel[1] *=-1.0;
+                if agent_next_pos[1] < enclosure_edge && agent_next_vel[1] < 0.0 {
+                    agent_next_vel[1] *= -1.0;
                 }
+
+                //updating again after boundary update
+                let agent_next_pos = agent_next_vel.clone() * dt + agent.to_owned();
+
                 //  assign for specific agent
                 next_agents_pos.slice_mut(s![i, ..]).assign(&agent_next_pos);
                 next_agents_vel.slice_mut(s![i, ..]).assign(&agent_next_vel);
@@ -161,12 +161,11 @@ fn main() {
     };
 
     //let's do it on a timer first
-    let start = Instant::now(); 
+    let start = Instant::now();
 
     window.render_loop(move |frame_input| {
         // let width = window.viewport().width;
         // let height = window.viewport().height;
-
 
         let mut circles: Vec<Gm<Circle, ColorMaterial>> = vec![];
 
@@ -180,10 +179,10 @@ fn main() {
 
         //run a replay because simpler style for now
         //
-        let elapsed_s = start.elapsed().as_millis() as f64/1000.0;
-        println!("{}",elapsed_s);
-        let current_step = (((elapsed_s as f32)/(dt as f32)).round() as i32) % steps;
-        println!("{}",current_step);
+        let elapsed_s = start.elapsed().as_millis() as f64 / 1000.0;
+        println!("{}", elapsed_s);
+        let current_step = (((elapsed_s as f32) / (dt as f32)).round() as i32) % steps;
+        println!("{}", current_step);
 
         for agent_pos in pos_history[current_step as usize].rows() {
             let agent_x = (agent_pos[0] * scalar) + x_center;
