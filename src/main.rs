@@ -99,7 +99,7 @@ fn main() {
             for j in 0..n_agents {
                 if i != j {
                     let other = agents_pos.slice(s![j, ..]).to_owned();
-                    let diff = agent_pos.to_owned() - other;
+                    let diff = agent_pos.to_owned() - other.to_owned();
                     if diff.norm() > neighbor_radius {
                         //is neighbor, now do stuff
                         neighbors_pos.push(other);
@@ -107,7 +107,15 @@ fn main() {
                     }
                 }
                 //some kind of handle neighbors call
-                let mut agent_next_vel = local_controller( &Array2::from(neighbors_pos),&Array2::from(neighbors_vel),&agent_pos, &agent_vel);
+
+                //some fun conversions from vec to array, might have to build my own implem
+                let neighbors_pos_flat:Vec<f32> = neighbors_pos.iter().flatten().cloned().collect();
+                let neighbors_vel_flat:Vec<f32> = neighbors_vel.iter().flatten().cloned().collect();
+
+                let neighbors_pos_nd = Array2::from_shape_vec((neighbors_pos.len(),2), neighbors_pos_flat).unwrap();
+                let neighbors_vel_nd = Array2::from_shape_vec((neighbors_vel.len(),2), neighbors_vel_flat).unwrap();
+
+                let mut agent_next_vel = local_controller( &neighbors_pos_nd,&neighbors_vel_nd,&agent_pos, &agent_vel);
                 let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
 
                 //eventually boundary conditions and velocity limits
