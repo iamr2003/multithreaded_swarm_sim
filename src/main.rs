@@ -15,8 +15,14 @@ fn local_controller(
     //let's start with basic boids
 
     //WRONG, currently lets all agents see each other -- need to do index max
-    let pos_centroid = neighbors_pos.mean_axis(Axis(0)).unwrap();
-    let vel_centroid = neighbors_vel.mean_axis(Axis(0)).unwrap();
+    let pos_centroid = match neighbors_pos.mean_axis(Axis(0)) {
+        Some(res) => res,
+        None => array![0.0,0.0].to_owned()
+    };
+    let vel_centroid = match neighbors_vel.mean_axis(Axis(0)) {
+        Some(res) => res,
+        None => array![0.0,0.0].to_owned()
+    };
 
     let sep: Array1<f32> = Array::zeros(2);
     //need to do some manipulation
@@ -112,10 +118,24 @@ fn main() {
                 let neighbors_pos_flat:Vec<f32> = neighbors_pos.iter().flatten().cloned().collect();
                 let neighbors_vel_flat:Vec<f32> = neighbors_vel.iter().flatten().cloned().collect();
 
-                let neighbors_pos_nd = Array2::from_shape_vec((neighbors_pos.len(),2), neighbors_pos_flat).unwrap();
-                let neighbors_vel_nd = Array2::from_shape_vec((neighbors_vel.len(),2), neighbors_vel_flat).unwrap();
+                let neighbors_pos_nd = Array2::from_shape_vec((neighbors_pos.len(),2), neighbors_pos_flat);
+                let neighbors_vel_nd = Array2::from_shape_vec((neighbors_vel.len(),2), neighbors_vel_flat);
 
-                let mut agent_next_vel = local_controller( &neighbors_pos_nd,&neighbors_vel_nd,&agent_pos, &agent_vel);
+                //something weird is happening RELATED TO UNWRAPS-- they shouldn't still
+                //be passing in
+                let mut agent_next_vel = match neighbors_pos_nd {
+                    Ok(n_pos) => match neighbors_vel_nd {
+                        Ok(n_vel)=>
+                            local_controller( &n_pos,&n_vel,&agent_pos, &agent_vel),
+                        Err(..)=>{
+                        array![0.0,0.0].to_owned()
+                     }
+                    },
+                    Err(..)=>{
+                        array![0.0,0.0].to_owned()
+                    }
+                };
+
                 let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
 
                 //eventually boundary conditions and velocity limits
