@@ -14,24 +14,28 @@ fn local_controller(
 ) -> Array1<f32> {
     //let's start with basic boids
 
-    //WRONG, currently lets all agents see each other -- need to do index max
     let pos_centroid = match neighbors_pos.mean_axis(Axis(0)) {
         Some(res) => res,
-        None => array![0.0,0.0].to_owned()
+        None => Array::zeros(2),
     };
     let vel_centroid = match neighbors_vel.mean_axis(Axis(0)) {
         Some(res) => res,
-        None => array![0.0,0.0].to_owned()
+        None => Array::zeros(2),
     };
 
-    let sep: Array1<f32> = Array::zeros(2);
-    //need to do some manipulation
-    // let rel_pos;
+    let mut sep: Array1<f32> = Array::zeros(2);
+
+    //might be able to write more efficiently with nd ops, but can't figure out rn
+    for n_pos in neighbors_pos.rows(){
+        let rel_pos = n_pos.to_owned() - self_pos;
+        let dist_weighted = -1.0/rel_pos.norm().pow(2.0);
+        let unit_rel_pos = rel_pos.to_owned()/rel_pos.norm();
+        sep = sep + (dist_weighted * unit_rel_pos); 
+    }
 
     let coh_gain = 1.0;
     let ali_gain = 1.0;
-    let sep_gain = 1.0;
-
+    let sep_gain = 10.0;
     let out = coh_gain * (pos_centroid - self_pos) + ali_gain * vel_centroid + sep_gain * sep;
 
     return out;
@@ -57,7 +61,7 @@ fn main() {
     let steps = (total_time / dt) as i32;
     let n_agents = 10;
     let enclosure_edge = 10.; //m
-    let neighbor_radius = 5.; //m
+    let neighbor_radius = 1.; //m
 
     let mut agents_pos: Array2<f32> =
         Array::random((n_agents, 2), Uniform::new(-enclosure_edge, enclosure_edge));
@@ -115,25 +119,24 @@ fn main() {
                 //some kind of handle neighbors call
 
                 //some fun conversions from vec to array, might have to build my own implem
-                let neighbors_pos_flat:Vec<f32> = neighbors_pos.iter().flatten().cloned().collect();
-                let neighbors_vel_flat:Vec<f32> = neighbors_vel.iter().flatten().cloned().collect();
+                let neighbors_pos_flat: Vec<f32> =
+                    neighbors_pos.iter().flatten().cloned().collect();
+                let neighbors_vel_flat: Vec<f32> =
+                    neighbors_vel.iter().flatten().cloned().collect();
 
-                let neighbors_pos_nd = Array2::from_shape_vec((neighbors_pos.len(),2), neighbors_pos_flat);
-                let neighbors_vel_nd = Array2::from_shape_vec((neighbors_vel.len(),2), neighbors_vel_flat);
+                let neighbors_pos_nd =
+                    Array2::from_shape_vec((neighbors_pos.len(), 2), neighbors_pos_flat);
+                let neighbors_vel_nd =
+                    Array2::from_shape_vec((neighbors_vel.len(), 2), neighbors_vel_flat);
 
                 //something weird is happening RELATED TO UNWRAPS-- they shouldn't still
-                //be passing in
+                //when no interaction, continue same direction
                 let mut agent_next_vel = match neighbors_pos_nd {
                     Ok(n_pos) => match neighbors_vel_nd {
-                        Ok(n_vel)=>
-                            local_controller( &n_pos,&n_vel,&agent_pos, &agent_vel),
-                        Err(..)=>{
-                        array![0.0,0.0].to_owned()
-                     }
+                        Ok(n_vel) => local_controller(&n_pos, &n_vel, &agent_pos, &agent_vel),
+                        Err(..) => agent_vel.to_owned(),
                     },
-                    Err(..)=>{
-                        array![0.0,0.0].to_owned()
-                    }
+                    Err(..) => agent_vel.to_owned(),
                 };
 
                 let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
@@ -144,7 +147,7 @@ fn main() {
                     agent_next_vel[0] *= -1.0;
                 }
 
-                if agent_next_pos[0] < enclosure_edge && agent_next_vel[0] < 0.0 {
+                if agent_next_pos[0] < -enclosure_edge && agent_next_vel[0] < 0.0 {
                     agent_next_vel[0] *= -1.0;
                 }
 
@@ -152,7 +155,7 @@ fn main() {
                     agent_next_vel[1] *= -1.0;
                 }
 
-                if agent_next_pos[1] < enclosure_edge && agent_next_vel[1] < 0.0 {
+                if agent_next_pos[1] < -enclosure_edge && agent_next_vel[1] < 0.0 {
                     agent_next_vel[1] *= -1.0;
                 }
 
