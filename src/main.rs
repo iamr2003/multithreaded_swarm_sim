@@ -1,6 +1,6 @@
 use ndarray::{array, s, Array, Array1, Array2, Axis};
 use ndarray_linalg::*;
-use ndarray_rand::rand_distr::Uniform;
+use ndarray_rand::rand_distr::{Normal, Uniform};
 use ndarray_rand::RandomExt;
 use std::time::{Duration, Instant};
 use three_d::*;
@@ -26,17 +26,21 @@ fn local_controller(
     let mut sep: Array1<f32> = Array::zeros(2);
 
     //might be able to write more efficiently with nd ops, but can't figure out rn
-    for n_pos in neighbors_pos.rows(){
+    for n_pos in neighbors_pos.rows() {
         let rel_pos = n_pos.to_owned() - self_pos;
-        let dist_weighted = -1.0/rel_pos.norm().pow(2.0);
-        let unit_rel_pos = rel_pos.to_owned()/rel_pos.norm();
-        sep = sep + (dist_weighted * unit_rel_pos); 
+        let dist_weighted = -1.0 / rel_pos.norm().pow(2.0);
+        let unit_rel_pos = rel_pos.to_owned() / rel_pos.norm();
+        sep = sep + (dist_weighted * unit_rel_pos);
     }
 
     let coh_gain = 1.0;
     let ali_gain = 1.0;
-    let sep_gain = 10.0;
-    let out = coh_gain * (pos_centroid - self_pos) + ali_gain * vel_centroid + sep_gain * sep;
+    let sep_gain = 1.0;
+    let inertia = 1.0;
+    let out = inertia * self_vel
+        + coh_gain * (pos_centroid - self_pos)
+        + ali_gain * vel_centroid
+        + sep_gain * sep;
 
     return out;
 }
@@ -61,11 +65,17 @@ fn main() {
     let steps = (total_time / dt) as i32;
     let n_agents = 10;
     let enclosure_edge = 10.; //m
-    let neighbor_radius = 1.; //m
+    let max_init_vel = 10.; //m/s
+    let neighbor_radius = 0.01; //m
 
     let mut agents_pos: Array2<f32> =
         Array::random((n_agents, 2), Uniform::new(-enclosure_edge, enclosure_edge));
-    let mut agents_vel: Array2<f32> = Array::zeros((n_agents, 2));
+
+    //let's give some initial vel
+    //consider using a different distribution
+    let mut agents_vel: Array2<f32> =
+        Array::random((n_agents, 2), Uniform::new(-max_init_vel, max_init_vel));
+    // Array::zeros((n_agents, 2));
 
     let mut pos_history: Vec<Array2<f32>> = vec![];
     let mut vel_history: Vec<Array2<f32>> = vec![];
@@ -138,6 +148,11 @@ fn main() {
                     },
                     Err(..) => agent_vel.to_owned(),
                 };
+
+                //should not be needed, but it is
+                if neighbors_pos.len() == 0 {
+                    agent_next_vel = agent_vel.to_owned();
+                }
 
                 let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
 
