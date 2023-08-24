@@ -35,7 +35,7 @@ fn local_controller(
 
     let coh_gain = 1.0;
     let ali_gain = 1.0;
-    let sep_gain = 1.0;
+    let sep_gain = 5.0;
     let inertia = 1.0;
     let out = inertia * self_vel
         + coh_gain * (pos_centroid - self_pos)
@@ -66,7 +66,9 @@ fn main() {
     let n_agents = 10;
     let enclosure_edge = 10.; //m
     let max_init_vel = 10.; //m/s
+    let max_vel = 10.;
     let neighbor_radius = 0.01; //m
+    
 
     let mut agents_pos: Array2<f32> =
         Array::random((n_agents, 2), Uniform::new(-enclosure_edge, enclosure_edge));
@@ -154,9 +156,15 @@ fn main() {
                     agent_next_vel = agent_vel.to_owned();
                 }
 
+                //vel magnitude clipping
+                if agent_next_vel.norm() > max_vel{
+                    agent_next_vel = agent_next_vel.clone()*max_vel/agent_next_vel.norm();
+                }
+
                 let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
 
                 //eventually boundary conditions and velocity limits
+
                 //simple bounce condition by dimension
                 if agent_next_pos[0] > enclosure_edge && agent_next_vel[0] > 0.0 {
                     agent_next_vel[0] *= -1.0;
