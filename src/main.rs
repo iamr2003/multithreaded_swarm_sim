@@ -1,8 +1,8 @@
 use ndarray::{array, s, Array, Array1, Array2, Axis};
 use ndarray_linalg::*;
-use ndarray_rand::rand_distr::{Normal, Uniform};
+use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use three_d::*;
 
 // spits out velocity
@@ -35,7 +35,7 @@ fn local_controller(
 
     let coh_gain = 1.0;
     let ali_gain = 1.0;
-    let sep_gain = 5.0;
+    let sep_gain = 1.0;
     let inertia = 1.0;
     let out = inertia * self_vel
         + coh_gain * (pos_centroid - self_pos)
@@ -61,14 +61,15 @@ fn main() {
     // println!("{}",r);
 
     let total_time = 5.0; //s
-    let dt = 0.01;
+    let dt = 0.05;
     let steps = (total_time / dt) as i32;
-    let n_agents = 10;
+    let n_agents = 40;
     let enclosure_edge = 10.; //m
     let max_init_vel = 10.; //m/s
     let max_vel = 10.;
-    let neighbor_radius = 0.01; //m
-    
+    let neighbor_radius = 0.1; //m
+                               //
+                               //already feelings slowness trying 0.01 dt
 
     let mut agents_pos: Array2<f32> =
         Array::random((n_agents, 2), Uniform::new(-enclosure_edge, enclosure_edge));
@@ -109,6 +110,7 @@ fn main() {
     //     }
     // }
 
+    //
     for _ in 0..steps {
         let mut next_agents_pos: Array2<f32> = agents_pos.clone();
         let mut next_agents_vel: Array2<f32> = agents_vel.clone();
@@ -118,6 +120,8 @@ fn main() {
             let mut neighbors_vel: Vec<Array1<f32>> = vec![];
             let agent_pos = agents_pos.slice(s![i, ..]).to_owned();
             let agent_vel = agents_vel.slice(s![i, ..]).to_owned();
+
+            // calculate neighbors
             for j in 0..n_agents {
                 if i != j {
                     let other = agents_pos.slice(s![j, ..]).to_owned();
@@ -128,67 +132,66 @@ fn main() {
                         neighbors_vel.push(agents_vel.slice(s![j, ..]).to_owned());
                     }
                 }
-                //some kind of handle neighbors call
-
-                //some fun conversions from vec to array, might have to build my own implem
-                let neighbors_pos_flat: Vec<f32> =
-                    neighbors_pos.iter().flatten().cloned().collect();
-                let neighbors_vel_flat: Vec<f32> =
-                    neighbors_vel.iter().flatten().cloned().collect();
-
-                let neighbors_pos_nd =
-                    Array2::from_shape_vec((neighbors_pos.len(), 2), neighbors_pos_flat);
-                let neighbors_vel_nd =
-                    Array2::from_shape_vec((neighbors_vel.len(), 2), neighbors_vel_flat);
-
-                //something weird is happening RELATED TO UNWRAPS-- they shouldn't still
-                //when no interaction, continue same direction
-                let mut agent_next_vel = match neighbors_pos_nd {
-                    Ok(n_pos) => match neighbors_vel_nd {
-                        Ok(n_vel) => local_controller(&n_pos, &n_vel, &agent_pos, &agent_vel),
-                        Err(..) => agent_vel.to_owned(),
-                    },
-                    Err(..) => agent_vel.to_owned(),
-                };
-
-                //should not be needed, but it is
-                if neighbors_pos.len() == 0 {
-                    agent_next_vel = agent_vel.to_owned();
-                }
-
-                //vel magnitude clipping
-                if agent_next_vel.norm() > max_vel{
-                    agent_next_vel = agent_next_vel.clone()*max_vel/agent_next_vel.norm();
-                }
-
-                let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
-
-                //eventually boundary conditions and velocity limits
-
-                //simple bounce condition by dimension
-                if agent_next_pos[0] > enclosure_edge && agent_next_vel[0] > 0.0 {
-                    agent_next_vel[0] *= -1.0;
-                }
-
-                if agent_next_pos[0] < -enclosure_edge && agent_next_vel[0] < 0.0 {
-                    agent_next_vel[0] *= -1.0;
-                }
-
-                if agent_next_pos[1] > enclosure_edge && agent_next_vel[1] > 0.0 {
-                    agent_next_vel[1] *= -1.0;
-                }
-
-                if agent_next_pos[1] < -enclosure_edge && agent_next_vel[1] < 0.0 {
-                    agent_next_vel[1] *= -1.0;
-                }
-
-                //updating again after boundary update
-                let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
-
-                //  assign for specific agent
-                next_agents_pos.slice_mut(s![i, ..]).assign(&agent_next_pos);
-                next_agents_vel.slice_mut(s![i, ..]).assign(&agent_next_vel);
             }
+            //I think I was doing wayyy too many recomputations for no good reason
+            //some kind of handle neighbors call
+
+            //some fun conversions from vec to array, might have to build my own implem
+            let neighbors_pos_flat: Vec<f32> = neighbors_pos.iter().flatten().cloned().collect();
+            let neighbors_vel_flat: Vec<f32> = neighbors_vel.iter().flatten().cloned().collect();
+
+            let neighbors_pos_nd =
+                Array2::from_shape_vec((neighbors_pos.len(), 2), neighbors_pos_flat);
+            let neighbors_vel_nd =
+                Array2::from_shape_vec((neighbors_vel.len(), 2), neighbors_vel_flat);
+
+            //something weird is happening RELATED TO UNWRAPS-- they shouldn't still
+            //when no interaction, continue same direction
+            let mut agent_next_vel = match neighbors_pos_nd {
+                Ok(n_pos) => match neighbors_vel_nd {
+                    Ok(n_vel) => local_controller(&n_pos, &n_vel, &agent_pos, &agent_vel),
+                    Err(..) => agent_vel.to_owned(),
+                },
+                Err(..) => agent_vel.to_owned(),
+            };
+
+            //should not be needed, but it is
+            if neighbors_pos.len() == 0 {
+                agent_next_vel = agent_vel.to_owned();
+            }
+
+            //vel magnitude clipping
+            if agent_next_vel.norm() > max_vel {
+                agent_next_vel = agent_next_vel.clone() * max_vel / agent_next_vel.norm();
+            }
+
+            let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
+
+            //eventually boundary conditions and velocity limits
+
+            //simple bounce condition by dimension
+            if agent_next_pos[0] > enclosure_edge && agent_next_vel[0] > 0.0 {
+                agent_next_vel[0] *= -1.0;
+            }
+
+            if agent_next_pos[0] < -enclosure_edge && agent_next_vel[0] < 0.0 {
+                agent_next_vel[0] *= -1.0;
+            }
+
+            if agent_next_pos[1] > enclosure_edge && agent_next_vel[1] > 0.0 {
+                agent_next_vel[1] *= -1.0;
+            }
+
+            if agent_next_pos[1] < -enclosure_edge && agent_next_vel[1] < 0.0 {
+                agent_next_vel[1] *= -1.0;
+            }
+
+            //updating again after boundary update
+            let agent_next_pos = agent_next_vel.clone() * dt + agent_pos.to_owned();
+
+            //  assign for specific agent
+            next_agents_pos.slice_mut(s![i, ..]).assign(&agent_next_pos);
+            next_agents_vel.slice_mut(s![i, ..]).assign(&agent_next_vel);
         }
         //log current iteration and overwrite
         pos_history.push(agents_pos.clone());
