@@ -61,7 +61,7 @@ fn main() {
     // println!("{}",r);
 
     let total_time = 5.0; //s
-    let dt = 0.05;
+    let dt = 0.01;
     let steps = (total_time / dt) as i32;
     let n_agents = 40;
     let enclosure_edge = 10.; //m
@@ -115,21 +115,55 @@ fn main() {
         let mut next_agents_pos: Array2<f32> = agents_pos.clone();
         let mut next_agents_vel: Array2<f32> = agents_vel.clone();
         //find neighbors, the slow way
+
+        //spatial hash, create occupancy grid
+        // row,index,agent
+        let grid_size: usize = f32::ceil((enclosure_edge * 2.0) / neighbor_radius) as usize;
+        let mut occupancy: Vec<Vec<Vec<usize>>> = vec![vec![vec![]; grid_size]; grid_size];
+        for i in 0..n_agents {
+            let agent_pos = agents_pos.slice(s![i, ..]).to_owned();
+            let x_hash = f32::floor((agent_pos[0] + enclosure_edge) / neighbor_radius) as usize;
+            let y_hash = f32::floor((agent_pos[1] + enclosure_edge) / neighbor_radius) as usize;
+            occupancy[x_hash][y_hash].push(i);
+        }
+
         for i in 0..n_agents {
             let mut neighbors_pos: Vec<Array1<f32>> = vec![];
             let mut neighbors_vel: Vec<Array1<f32>> = vec![];
+
             let agent_pos = agents_pos.slice(s![i, ..]).to_owned();
+            let x_hash = f32::floor((agent_pos[0] + enclosure_edge) / neighbor_radius) as i32;
+            let y_hash = f32::floor((agent_pos[1] + enclosure_edge) / neighbor_radius) as i32;
+
             let agent_vel = agents_vel.slice(s![i, ..]).to_owned();
 
             // calculate neighbors
-            for j in 0..n_agents {
-                if i != j {
-                    let other = agents_pos.slice(s![j, ..]).to_owned();
-                    let diff = agent_pos.to_owned() - other.to_owned();
-                    if diff.norm() > neighbor_radius {
-                        //is neighbor, now do stuff
-                        neighbors_pos.push(other);
-                        neighbors_vel.push(agents_vel.slice(s![j, ..]).to_owned());
+            // check all adjacent cells including the one within
+            // not allowing me to start with -1 for some reason
+
+            //inelegant, would like a better way
+            for r in -1..=1 {
+                for c in -1..=1 {
+                    //NEED TO MAKE SURE GET HAS SAFETIES I WANT, usize wrap might be a problem
+                    match occupancy.get((&x_hash + r) as usize) {
+                        Some(row) => match row.get((&y_hash + c) as usize) {
+                            Some(cell) => {
+                                for j in cell.iter() {
+                                    if i != *j {
+                                        let other = agents_pos.slice(s![*j, ..]).to_owned();
+                                        let diff = agent_pos.to_owned() - other.to_owned();
+                                        if diff.norm() > neighbor_radius {
+                                            //is neighbor, now do stuff
+                                            neighbors_pos.push(other);
+                                            neighbors_vel
+                                                .push(agents_vel.slice(s![*j, ..]).to_owned());
+                                        }
+                                    }
+                                }
+                            }
+                            None => {}
+                        },
+                        None => {}
                     }
                 }
             }
@@ -241,9 +275,9 @@ fn main() {
         //run a replay because simpler style for now
         //
         let elapsed_s = start.elapsed().as_millis() as f64 / 1000.0;
-        println!("{}", elapsed_s);
+        // println!("{}", elapsed_s);
         let current_step = (((elapsed_s as f32) / (dt as f32)).round() as i32) % steps;
-        println!("{}", current_step);
+        // println!("{}", current_step);
 
         for agent_pos in pos_history[current_step as usize].rows() {
             let agent_x = (agent_pos[0] * scalar) + x_center;
