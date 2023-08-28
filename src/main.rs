@@ -1,4 +1,5 @@
 mod controllers;
+mod sim_params;
 use ndarray::{array, s, Array, Array1, Array2, Axis};
 use ndarray_linalg::*;
 use ndarray_rand::rand_distr::Uniform;
@@ -11,7 +12,6 @@ use crate::controllers::AgentController;
 //0 to swarm sim is the goal
 fn main() {
     println!("Hello, world!");
-
     let total_time = 5.0; //s
     let dt = 0.01;
     let steps = (total_time / dt) as i32;
@@ -81,7 +81,6 @@ fn main() {
             //inelegant, would like a better way
             for r in -1..=1 {
                 for c in -1..=1 {
-                    //NEED TO MAKE SURE GET HAS SAFETIES I WANT, usize wrap might be a problem
                     match occupancy.get((&x_hash + r) as usize) {
                         Some(row) => match row.get((&y_hash + c) as usize) {
                             Some(cell) => {
