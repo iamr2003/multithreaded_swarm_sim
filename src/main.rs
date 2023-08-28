@@ -1,3 +1,4 @@
+mod controllers;
 use ndarray::{array, s, Array, Array1, Array2, Axis};
 use ndarray_linalg::*;
 use ndarray_rand::rand_distr::Uniform;
@@ -5,60 +6,11 @@ use ndarray_rand::RandomExt;
 use std::time::Instant;
 use three_d::*;
 
-// spits out velocity
-fn local_controller(
-    neighbors_pos: &Array2<f32>,
-    neighbors_vel: &Array2<f32>,
-    self_pos: &Array1<f32>,
-    self_vel: &Array1<f32>,
-) -> Array1<f32> {
-    //let's start with basic boids
-
-    let pos_centroid = match neighbors_pos.mean_axis(Axis(0)) {
-        Some(res) => res,
-        None => Array::zeros(2),
-    };
-    let vel_centroid = match neighbors_vel.mean_axis(Axis(0)) {
-        Some(res) => res,
-        None => Array::zeros(2),
-    };
-
-    let mut sep: Array1<f32> = Array::zeros(2);
-
-    //might be able to write more efficiently with nd ops, but can't figure out rn
-    for n_pos in neighbors_pos.rows() {
-        let rel_pos = n_pos.to_owned() - self_pos;
-        let dist_weighted = -1.0 / rel_pos.norm().pow(2.0);
-        let unit_rel_pos = rel_pos.to_owned() / rel_pos.norm();
-        sep = sep + (dist_weighted * unit_rel_pos);
-    }
-
-    let coh_gain = 1.0;
-    let ali_gain = 1.0;
-    let sep_gain = 5.0;
-    let inertia = 1.0;
-    let out = inertia * self_vel
-        + coh_gain * (pos_centroid - self_pos)
-        + ali_gain * vel_centroid
-        + sep_gain * sep;
-
-    return out;
-}
+use crate::controllers::AgentController;
 
 //0 to swarm sim is the goal
 fn main() {
     println!("Hello, world!");
-
-    // let a1 = array!([1,2,3,4]);
-    // let a2 = array!([4,3,2,1]);
-    // println!("{}",a1+a2);
-    //
-    // let a3 = array!([[1,2],[3,4]]);
-    // let a4 = array!([[2,2],[3,4]]);
-    // println!("{}",a3+a4);
-
-    // let r = Array::random((2,5),Uniform::new(0.,10.));
-    // println!("{}",r);
 
     let total_time = 5.0; //s
     let dt = 0.01;
@@ -68,8 +20,6 @@ fn main() {
     let max_init_vel = 10.; //m/s
     let max_vel = 10.;
     let neighbor_radius = 1.0; //m
-                               //
-                               //already feelings slowness trying 0.01 dt
 
     let mut agents_pos: Array2<f32> =
         Array::random((n_agents, 2), Uniform::new(-enclosure_edge, enclosure_edge));
@@ -84,7 +34,6 @@ fn main() {
     let mut vel_history: Vec<Array2<f32>> = vec![];
 
     // println!("{}", agents_pos.mean_axis(Axis(0)).unwrap());
-
     // println!("{}", agents_pos.slice(s![0, ..]));
 
     // let mut top_agent = agents_pos.slice_mut(s![0, ..]);
@@ -101,24 +50,12 @@ fn main() {
         // agent[1] = temp[0];
     }
 
-    // println!("{}", agents_pos);
-    //to_owned needs to be used to clone the subview properly
-    // for i in 0..n_agents {
-    //     for j in 0..n_agents {
-    //         let diff = agents_pos.slice(s![j, ..]).to_owned()  -agents_pos.slice(s![i, ..]).to_owned();
-    //         println!("{}", diff);
-    //     }
-    // }
-
-    //
     for _ in 0..steps {
         let mut next_agents_pos: Array2<f32> = agents_pos.clone();
         let mut next_agents_vel: Array2<f32> = agents_vel.clone();
-        //find neighbors, the slow way
 
         //spatial hash, create occupancy grid
         // row,index,agent
-        // REPHRASE AS IN TERMS OF NUMBER OF ENTRIES, MAKE IT EASY TO RECOMPUTE
 
         let grid_size: usize = f32::ceil((enclosure_edge * 2.0) / neighbor_radius) as usize;
         let mut occupancy: Vec<Vec<Vec<usize>>> = vec![vec![vec![]; grid_size]; grid_size];
@@ -140,8 +77,6 @@ fn main() {
             let agent_vel = agents_vel.slice(s![i, ..]).to_owned();
 
             // calculate neighbors
-            // check all adjacent cells including the one within
-            // not allowing me to start with -1 for some reason
 
             //inelegant, would like a better way
             for r in -1..=1 {
@@ -185,7 +120,7 @@ fn main() {
             //when no interaction, continue same direction
             let mut agent_next_vel = match neighbors_pos_nd {
                 Ok(n_pos) => match neighbors_vel_nd {
-                    Ok(n_vel) => local_controller(&n_pos, &n_vel, &agent_pos, &agent_vel),
+                    Ok(n_vel) => controllers::Boids::local_controller(&n_pos, &n_vel, &agent_pos, &agent_vel),
                     Err(..) => agent_vel.to_owned(),
                 },
                 Err(..) => agent_vel.to_owned(),
@@ -261,6 +196,8 @@ fn main() {
     // I would like a ring around each circle as the neighbor radius, so I can verify what's
     // happening
     // there is still some weird merging that occurs
+    // TEST BETWEEEN ORIGINAL AND NEW NEIGHBOR CALC METHODS TO VERIFY? REFACTOR FOR BETTER TESTING
+    // PIPELINE
 
     window.render_loop(move |frame_input| {
         // let width = window.viewport().width;
@@ -301,17 +238,6 @@ fn main() {
         //
         let edge_marker_radius = 3.0 * scale_factor;
 
-        // circles.push(Gm::new(
-        //     Circle::new(
-        //         &context,
-        //         vec2(x_center, y_center) * scale_factor,
-        //         edge_marker_radius,
-        //     ),
-        //     ColorMaterial {
-        //         color: Color::RED,
-        //         ..Default::default()
-        //     },
-        // ));
 
         //edge markers
         for i in [-1.0, 0.0, 1.0].iter() {
