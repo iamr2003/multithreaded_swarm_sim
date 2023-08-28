@@ -35,7 +35,7 @@ fn local_controller(
 
     let coh_gain = 1.0;
     let ali_gain = 1.0;
-    let sep_gain = 1.0;
+    let sep_gain = 5.0;
     let inertia = 1.0;
     let out = inertia * self_vel
         + coh_gain * (pos_centroid - self_pos)
@@ -63,11 +63,11 @@ fn main() {
     let total_time = 5.0; //s
     let dt = 0.01;
     let steps = (total_time / dt) as i32;
-    let n_agents = 40;
+    let n_agents = 1000;
     let enclosure_edge = 10.; //m
     let max_init_vel = 10.; //m/s
     let max_vel = 10.;
-    let neighbor_radius = 0.1; //m
+    let neighbor_radius = 1.0; //m
                                //
                                //already feelings slowness trying 0.01 dt
 
@@ -118,6 +118,8 @@ fn main() {
 
         //spatial hash, create occupancy grid
         // row,index,agent
+        // REPHRASE AS IN TERMS OF NUMBER OF ENTRIES, MAKE IT EASY TO RECOMPUTE
+
         let grid_size: usize = f32::ceil((enclosure_edge * 2.0) / neighbor_radius) as usize;
         let mut occupancy: Vec<Vec<Vec<usize>>> = vec![vec![vec![]; grid_size]; grid_size];
         for i in 0..n_agents {
@@ -249,14 +251,16 @@ fn main() {
     let context = window.gl();
     let scale_factor = 1.0;
     let (width, height) = window.size();
-    let agent_visual_radius = 15.0 * scale_factor;
+    let agent_visual_radius = 10.0 * scale_factor;
     let agent_material = ColorMaterial {
         color: Color::BLUE,
         ..Default::default()
     };
 
-    //let's do it on a timer first
     let start = Instant::now();
+    // I would like a ring around each circle as the neighbor radius, so I can verify what's
+    // happening
+    // there is still some weird merging that occurs
 
     window.render_loop(move |frame_input| {
         // let width = window.viewport().width;
